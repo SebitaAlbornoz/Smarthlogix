@@ -49,28 +49,45 @@ export SPRING_DATASOURCE_USERNAME=root
 export SPRING_DATASOURCE_PASSWORD=tu_password
 ```
 
-### Si la base es RDS (en vez de MySQL local en la EC2)
+### Si la base es RDS (3 instancias separadas, una por microservicio)
 
-Antes de levantar `inventory`, `order` y `shipment`, exporta estas 3
-variables **por cada uno** (mismo host/usuario, cambia solo el nombre de la
-base al final de la URL):
+Cada microservicio apunta a su propia instancia RDS. Antes de crear cada
+base, revisa en la consola de esa instancia que su Security Group tenga una
+regla de entrada MySQL/Aurora (puerto 3306) con origen = el Security Group
+de tu EC2.
+
+Crea la base dentro de cada instancia (Hibernate crea las tablas, no el
+schema):
 
 ```bash
-export SPRING_DATASOURCE_URL=jdbc:mysql://<ENDPOINT_RDS>:3306/inventory_db
-export SPRING_DATASOURCE_USERNAME=<usuario_rds>
-export SPRING_DATASOURCE_PASSWORD=<password_rds>
+mysql -h <ENDPOINT_INVENTORY> -u admin -p -e "CREATE DATABASE inventory_db;"
+mysql -h <ENDPOINT_ORDER> -u admin -p -e "CREATE DATABASE order_db;"
+mysql -h <ENDPOINT_SHIPMENT> -u admin -p -e "CREATE DATABASE shipment_db;"
+```
+
+Luego, exporta las 3 variables **justo antes de lanzar cada jar**, con el
+endpoint que le corresponde a ese microservicio (no se toca ningún
+`application.properties`):
+
+```bash
+export SPRING_DATASOURCE_URL=jdbc:mysql://<ENDPOINT_INVENTORY>:3306/inventory_db
+export SPRING_DATASOURCE_USERNAME=admin
+export SPRING_DATASOURCE_PASSWORD=<password_inventory>
 nohup java -jar microservices/inventory/target/*.jar > inventory.log 2>&1 &
+
+export SPRING_DATASOURCE_URL=jdbc:mysql://<ENDPOINT_ORDER>:3306/order_db
+export SPRING_DATASOURCE_USERNAME=admin
+export SPRING_DATASOURCE_PASSWORD=<password_order>
+nohup java -jar microservices/order/target/*.jar > order.log 2>&1 &
+
+export SPRING_DATASOURCE_URL=jdbc:mysql://<ENDPOINT_SHIPMENT>:3306/shipment_db
+export SPRING_DATASOURCE_USERNAME=admin
+export SPRING_DATASOURCE_PASSWORD=<password_shipment>
+nohup java -jar microservices/shipment/target/*.jar > shipment.log 2>&1 &
 ```
 
-Antes de esto: crea las 3 bases en el RDS (Hibernate crea las tablas, no
-los schemas) y abre el puerto 3306 en el Security Group del RDS hacia el
-Security Group de la EC2.
-
-```sql
-CREATE DATABASE inventory_db;
-CREATE DATABASE order_db;
-CREATE DATABASE shipment_db;
-```
+Revisa cada log (`tail -f inventory.log`, etc.) para confirmar que arrancó
+sin errores de conexión antes de dar por hecho que quedó todo listo.
 
 ## 4. Compilar y levantar el backend (orden importa)
 
