@@ -1,0 +1,68 @@
+/* src/index.css */
+
+/* Fondo general fluido y brillante */
+body {
+  background: linear-gradient(135deg, #e0f7fa 0%, #a8c0ff 100%);
+  background-attachment: fixed;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: #0d3b66;
+  min-height: 100vh;
+}
+
+/* Contenedor principal con efecto de vidrio esmerilado */
+.glass-container {
+  background: rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 20px;
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1), inset 0 2px 8px rgba(255, 255, 255, 0.6);
+  padding: 2rem;
+}
+
+/* Tarjetas brillantes (para los items del carrito o productos) */
+.glossy-card {
+  background: linear-gradient(135deg, rgba(255,255,255,0.85) 0%, rgba(240,248,255,0.6) 100%);
+  border: 1px solid rgba(255,255,255,0.9);
+  border-radius: 16px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.05), inset 0 2px 6px rgba(255,255,255,1);
+  transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+}
+
+.glossy-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 25px rgba(0, 150, 255, 0.15), inset 0 2px 8px rgba(255, 255, 255, 1);
+}
+
+/* Botones estilo "burbuja" táctil */
+.btn-bubble {
+  background: linear-gradient(180deg, #4facfe 0%, #00f2fe 100%);
+  border: 1px solid #00a8ff;
+  color: white;
+  border-radius: 25px;
+  padding: 10px 24px;
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  box-shadow: inset 0 2px 5px rgba(255,255,255,0.6), 0 4px 8px rgba(0,0,0,0.15);
+  transition: all 0.2s;
+}
+
+.btn-bubble:hover {
+  transform: scale(1.05);
+  box-shadow: inset 0 2px 5px rgba(255,255,255,0.8), 0 6px 12px rgba(0,0,0,0.25);
+  color: white;
+}
+
+.btn-bubble-danger {
+  background: linear-gradient(180deg, #ff758c 0%, #ff7eb3 100%);
+  border: 1px solid #ff4757;
+}
+.glass-container img {
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
+}

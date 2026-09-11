@@ -1,0 +1,18 @@
+# ---------- Frontend (Node / Vite) ----------
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/*.local
+
+# ---------- Backend (Maven / Java) ----------
+backend/**/target/
+backend/**/*.class
+backend/**/.mvn/wrapper/maven-wrapper.jar
+
+# ---------- IDE / SO ----------
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+*.log

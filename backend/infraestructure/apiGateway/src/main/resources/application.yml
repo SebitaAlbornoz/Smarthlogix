@@ -1,0 +1,49 @@
+server:
+  port: 8089
+
+
+spring:
+  cloud:
+    gateway:
+      globalcors:
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins:
+              - "http://localhost:5173"
+              - "http://TU_IP_O_DOMINIO_EC2"   # <-- reemplazar por la URL pública real del frontend en EC2
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowedHeaders: "*"
+      routes:
+
+        - id: inventory_service
+          uri: lb://microservices-inventory
+          predicates:
+            - Path=/api/inventory/**
+          filters:
+            - StripPrefix=1
+
+        - id: order_service
+          uri: lb://microservices-order
+          predicates:
+            - Path=/api/order/**
+          filters:
+            - StripPrefix=1
+
+        - id: shipment_service
+          uri: lb://microservices-shipment
+          predicates:
+            - Path=/api/shipment/**
+          filters:
+            - StripPrefix=1
+
+        - id: bff_service
+          uri: lb://microservices-bff
+          predicates:
+            - Path=/api/bff/**
+          filters:
+            - StripPrefix=1

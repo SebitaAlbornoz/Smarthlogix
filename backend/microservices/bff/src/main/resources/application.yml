@@ -1,0 +1,23 @@
+spring:
+  cloud:
+    gateway:
+      routes:
+        - id: bbf-service
+          uri: lb://microservices-bbf
+          predicates:
+            - Path=/**
+            
+        - id: inventory-service
+          uri: lb://microservices-inventory
+          predicates:
+            - Path=/**
+            
+        - id: order-service
+          uri: lb://microservices-order
+          predicates:
+            - Path=/**
+            
+        - id: shipment-service
+          uri: lb://microservices-shipment
+          predicates:
+            - Path=/**
