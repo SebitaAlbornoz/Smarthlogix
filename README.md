@@ -9,39 +9,54 @@ smartlogix/
 └── backend/    -> storechainparent (Eureka, API Gateway, microservicios)
 ```
 
-Este despliegue es **manual, sin Docker y sin pipeline de CI/CD**: se hace
-`git pull` en la instancia EC2 y se levanta cada servicio a mano (o con los
-scripts de ayuda incluidos).
+Este despliegue es **manual, sin Docker y sin pipeline de CI/CD**, y usa
+**2 instancias EC2 separadas**: una para el backend y otra para el
+frontend. En cada una se hace `git pull` del mismo repo y se levanta solo
+la carpeta que corresponde.
 
-## 1. Requisitos en la instancia EC2
+## 1. Requisitos
 
+**EC2 backend:**
 - Java 17+ y Maven
-- Node 20+ y npm
-- MySQL 8 corriendo (local en la misma EC2, o accesible por red)
-- Puertos abiertos en el Security Group: `5173` (o el que sirva el
-  frontend), `8089` (API Gateway), `8761` (Eureka) si necesitas verlo, y el
-  puerto de MySQL si es una instancia separada.
+- Security Group: puerto `8089` (API Gateway) abierto hacia la EC2/IP del
+  frontend (o `0.0.0.0/0`), `8761` (Eureka) opcional si quieres verlo desde
+  tu navegador, `22` (SSH) hacia tu IP
+- Salida hacia las 3 instancias RDS por el puerto `3306`
 
-## 2. Clonar el repo en EC2
+**EC2 frontend:**
+- Node 20+ y npm
+- Security Group: puerto `5173` (o el que uses para servir el build)
+  abierto hacia `0.0.0.0/0`, `22` (SSH) hacia tu IP
+
+## 2. Clonar el repo en cada EC2
+
+En la EC2 backend:
 
 ```bash
 git clone <URL_DE_TU_REPO> smartlogix
-cd smartlogix
+cd smartlogix/backend
 ```
 
-## 3. Bases de datos
+En la EC2 frontend:
 
-Cada microservicio usa su propia base (creadas automáticamente por
-Hibernate la primera vez que corre, gracias a `ddl-auto=create/update`):
+```bash
+git clone <URL_DE_TU_REPO> smartlogix
+cd smartlogix/frontend
+```
+
+## 3. Bases de datos (desde la EC2 backend)
+
+Cada microservicio usa su propia instancia RDS (creadas automáticamente por
+Hibernate la primera vez que corre, gracias a `ddl-auto=create/update` —
+solo el schema hay que crearlo a mano una vez):
 
 - `inventory_db` (usado por `microservices/inventory`)
 - `order_db` (usado por `microservices/order`)
 - `shipment_db` (usado por `microservices/shipment`)
 
-Solo hace falta que el usuario/contraseña de MySQL configurados en cada
-`application.properties` (por defecto `root` sin contraseña) existan en el
-MySQL de la EC2. Si usas otro usuario/host, sobrescríbelo por variable de
-entorno al lanzar el jar, sin tocar el archivo, por ejemplo:
+Si en vez de RDS usas MySQL instalado directo en la EC2 backend, sobrescribe
+la conexión por variable de entorno al lanzar el jar, sin tocar el archivo,
+por ejemplo:
 
 ```bash
 export SPRING_DATASOURCE_URL=jdbc:mysql://localhost:3306/inventory_db
@@ -89,12 +104,12 @@ nohup java -jar microservices/shipment/target/*.jar > shipment.log 2>&1 &
 Revisa cada log (`tail -f inventory.log`, etc.) para confirmar que arrancó
 sin errores de conexión antes de dar por hecho que quedó todo listo.
 
-## 4. Compilar y levantar el backend (orden importa)
+## 4. Compilar y levantar el backend (desde la EC2 backend, orden importa)
 
 Compila todo desde la raíz de `backend/`:
 
 ```bash
-cd backend
+cd smartlogix/backend
 mvn -q -DskipTests clean package
 ```
 
@@ -120,7 +135,7 @@ nohup java -jar microservices/bff/target/*.jar > bff.log 2>&1 &
 reemplazó por Entra ID/MSAL), así que no hace falta levantarlo salvo que lo
 uses para otra cosa.
 
-Revisa que todos se registraron en Eureka: `http://IP_PUBLICA_EC2:8761`.
+Revisa que todos se registraron en Eureka: `http://IP_PUBLICA_EC2_BACKEND:8761`.
 
 ## 5. CORS del Gateway
 
@@ -130,23 +145,23 @@ antes de compilar:
 
 ```yaml
 allowedOrigins:
-  - "http://IP_PUBLICA_EC2:5173"
+  - "http://IP_PUBLICA_EC2_FRONTEND:5173"
 ```
 
-## 6. Frontend
+## 6. Frontend (desde la EC2 frontend)
 
 ```bash
-cd frontend
+cd smartlogix/frontend
 cp .env.example .env
 ```
 
 Edita `.env` con los valores reales:
 
 ```
-VITE_API_URL=http://IP_PUBLICA_EC2:8089
+VITE_API_URL=http://IP_PUBLICA_EC2_BACKEND:8089
 VITE_AZURE_CLIENT_ID=<client id del App Registration en Entra ID>
 VITE_AZURE_TENANT_ID=<tenant id>
-VITE_AZURE_REDIRECT_URI=http://IP_PUBLICA_EC2:5173
+VITE_AZURE_REDIRECT_URI=http://IP_PUBLICA_EC2_FRONTEND:5173
 ```
 
 `VITE_AZURE_REDIRECT_URI` debe estar agregado tal cual, como "Redirect URI"
