@@ -49,6 +49,29 @@ export SPRING_DATASOURCE_USERNAME=root
 export SPRING_DATASOURCE_PASSWORD=tu_password
 ```
 
+### Si la base es RDS (en vez de MySQL local en la EC2)
+
+Antes de levantar `inventory`, `order` y `shipment`, exporta estas 3
+variables **por cada uno** (mismo host/usuario, cambia solo el nombre de la
+base al final de la URL):
+
+```bash
+export SPRING_DATASOURCE_URL=jdbc:mysql://<ENDPOINT_RDS>:3306/inventory_db
+export SPRING_DATASOURCE_USERNAME=<usuario_rds>
+export SPRING_DATASOURCE_PASSWORD=<password_rds>
+nohup java -jar microservices/inventory/target/*.jar > inventory.log 2>&1 &
+```
+
+Antes de esto: crea las 3 bases en el RDS (Hibernate crea las tablas, no
+los schemas) y abre el puerto 3306 en el Security Group del RDS hacia el
+Security Group de la EC2.
+
+```sql
+CREATE DATABASE inventory_db;
+CREATE DATABASE order_db;
+CREATE DATABASE shipment_db;
+```
+
 ## 4. Compilar y levantar el backend (orden importa)
 
 Compila todo desde la raíz de `backend/`:
