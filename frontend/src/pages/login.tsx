@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -12,9 +12,13 @@ export const Login = () => {
     // Si el usuario venía de una ruta protegida (ej. /admin), lo devolvemos ahí tras loguear.
     const from = (location.state as { from?: string })?.from || "/";
 
-    if (isAuthenticated) {
-        navigate(from, { replace: true });
-    }
+    // OJO: navigate() nunca se llama directo en el render (causaba un loop de
+    // renders). Solo se dispara como efecto cuando isAuthenticated cambia.
+    useEffect(() => {
+        if (isAuthenticated) {
+            navigate(from, { replace: true });
+        }
+    }, [isAuthenticated, from, navigate]);
 
     const handleLogin = async () => {
         setError(null);
