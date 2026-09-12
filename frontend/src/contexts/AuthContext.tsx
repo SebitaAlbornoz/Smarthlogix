@@ -19,19 +19,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const user = accounts[0] ?? null;
 
-    // Dispara el login contra Azure Entra ID (ventana emergente).
+    // Dispara el login contra Azure Entra ID. Usamos loginRedirect (navegación
+    // de página completa) en vez de loginPopup: los popups dependen de que la
+    // ventana principal pueda leer el storage de la ventana emergente, algo
+    // que navegadores con protecciones de privacidad fuertes (Brave, Safari
+    // con ITP, etc.) bloquean, dejando el popup abierto sin completar el login.
     const login = async () => {
-        await instance.loginPopup(loginRequest);
+        await instance.loginRedirect(loginRequest);
     };
 
     const logout = () => {
-        instance.logoutPopup({
+        instance.logoutRedirect({
             postLogoutRedirectUri: "/",
         });
     };
 
     // Obtiene el access token vigente para adjuntarlo como Bearer al llamar al backend.
-    // Intenta primero en silencio (sin mostrar UI) y si el token expiró, pide interacción.
+    // Intenta primero en silencio (sin mostrar UI) y si el token expiró, redirige
+    // a Microsoft para renovarlo (misma razón que en login: nada de popups).
     const getAccessToken = async (): Promise<string | null> => {
         if (accounts.length === 0) return null;
 
@@ -43,8 +48,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             return response.accessToken;
         } catch (error) {
             if (error instanceof InteractionRequiredAuthError) {
-                const response = await instance.acquireTokenPopup(loginRequest);
-                return response.accessToken;
+                await instance.acquireTokenRedirect(loginRequest);
+                return null; // la página navega fuera; no hay token que devolver en esta carga
             }
             console.error("Error obteniendo el access token de Entra ID", error);
             return null;

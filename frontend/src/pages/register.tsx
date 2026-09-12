@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 
 // Nota de arquitectura: con Azure Entra ID la creación de cuentas no se hace con un
@@ -11,7 +11,6 @@ import { useAuth } from "../contexts/AuthContext";
 // mismo flujo de MSAL en vez de pedir usuario/contraseña.
 export const Register = () => {
     const { login } = useAuth();
-    const navigate = useNavigate();
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
 
@@ -19,12 +18,12 @@ export const Register = () => {
         setError(null);
         setLoading(true);
         try {
+            // Redirige a Microsoft (redirectUri = raíz de la app); al volver,
+            // isAuthenticated queda en true y el usuario ve la Home ya logueado.
             await login();
-            navigate("/", { replace: true });
         } catch (err) {
             console.error("Error en registro con Entra ID", err);
             setError("No se pudo completar el registro. Intenta nuevamente.");
-        } finally {
             setLoading(false);
         }
     };

@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 
+const FROM_KEY = "smartlogix.postLoginRedirect";
+
 export const Login = () => {
     const { login, isAuthenticated } = useAuth();
     const navigate = useNavigate();
@@ -9,27 +11,32 @@ export const Login = () => {
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
 
-    // Si el usuario venía de una ruta protegida (ej. /admin), lo devolvemos ahí tras loguear.
-    const from = (location.state as { from?: string })?.from || "/";
+    // Si el usuario venía de una ruta protegida (ej. /admin), lo guardamos en
+    // sessionStorage porque loginRedirect recarga la página por completo:
+    // el state de react-router no sobrevive esa vuelta.
+    const from = (location.state as { from?: string })?.from;
+    if (from) {
+        sessionStorage.setItem(FROM_KEY, from);
+    }
 
-    // OJO: navigate() nunca se llama directo en el render (causaba un loop de
-    // renders). Solo se dispara como efecto cuando isAuthenticated cambia.
     useEffect(() => {
         if (isAuthenticated) {
-            navigate(from, { replace: true });
+            const target = sessionStorage.getItem(FROM_KEY) || "/";
+            sessionStorage.removeItem(FROM_KEY);
+            navigate(target, { replace: true });
         }
-    }, [isAuthenticated, from, navigate]);
+    }, [isAuthenticated, navigate]);
 
     const handleLogin = async () => {
         setError(null);
         setLoading(true);
         try {
+            // Esto navega fuera de la app hacia Microsoft; el código después
+            // del await normalmente no llega a ejecutarse.
             await login();
-            navigate(from, { replace: true });
         } catch (err) {
             console.error("Error en login con Entra ID", err);
             setError("No se pudo iniciar sesión. Intenta nuevamente.");
-        } finally {
             setLoading(false);
         }
     };
