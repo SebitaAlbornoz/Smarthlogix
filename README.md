@@ -14,18 +14,36 @@ Este despliegue es **manual, sin Docker y sin pipeline de CI/CD**, y usa
 frontend. En cada una se hace `git pull` del mismo repo y se levanta solo
 la carpeta que corresponde.
 
+## 0. Conectarte por SSH (si el backend está en subred privada)
+
+El backend no tiene IP pública, así que no puedes llegar a él directo desde
+tu compu. Usa el frontend (que sí es público) como salto:
+
+```bash
+ssh -J ec2-user@IP_PUBLICA_EC2_FRONTEND ec2-user@IP_PRIVADA_EC2_BACKEND -i tu-llave.pem
+```
+
+Para que funcione:
+- Security Group del **backend**: puerto `22` abierto con origen = el
+  Security Group del frontend (no `0.0.0.0/0`).
+- Security Group del **frontend**: puerto `22` abierto hacia tu IP pública.
+- La misma llave `.pem` normalmente sirve para ambas instancias en AWS
+  Academy.
+
 ## 1. Requisitos
 
 **EC2 backend:**
 - Java 17+ y Maven
-- Security Group: puerto `8089` (API Gateway) abierto hacia la EC2/IP del
-  frontend (o `0.0.0.0/0`), `8761` (Eureka) opcional si quieres verlo desde
-  tu navegador, `22` (SSH) hacia tu IP
+- Security Group: puerto `8089` (API Gateway) abierto solo hacia el
+  Security Group de la EC2 frontend (si el backend es privado) o hacia
+  `0.0.0.0/0` (si es público); `8761` (Eureka) opcional para verlo desde tu
+  navegador (solo si tienes acceso); `22` (SSH) hacia el SG del frontend si
+  es privado, o hacia tu IP si es público
 - Salida hacia las 3 instancias RDS por el puerto `3306`
 
 **EC2 frontend:**
-- Node 20+ y npm
-- Security Group: puerto `5173` (o el que uses para servir el build)
+- Node 20+ y npm (y nginx si el backend es privado, ver sección 6)
+- Security Group: puerto `80` (con nginx) o `5173` (con `npx serve`)
   abierto hacia `0.0.0.0/0`, `22` (SSH) hacia tu IP
 
 ## 2. Clonar el repo en cada EC2
@@ -150,34 +168,66 @@ allowedOrigins:
 
 ## 6. Frontend (desde la EC2 frontend)
 
+> **Si el backend quedó en subred privada** (recomendado por seguridad): el
+> navegador del usuario nunca puede llegar a una IP privada. La solución es
+> que el frontend sirva su build con **nginx** y reenvíe internamente las
+> llamadas a `/api/...` hacia la IP privada del backend, por la red interna
+> de la VPC. Así el navegador solo habla con la IP pública del frontend.
+
 ```bash
 cd smartlogix/frontend
 cp .env.example .env
 ```
 
-Edita `.env` con los valores reales:
+Edita `.env` con los valores reales. Si el backend es privado, `VITE_API_URL`
+apunta al propio frontend (mismo origen que sirve nginx), no a la IP del
+backend:
 
 ```
-VITE_API_URL=http://IP_PUBLICA_EC2_BACKEND:8089
+VITE_API_URL=http://IP_PUBLICA_EC2_FRONTEND
 VITE_AZURE_CLIENT_ID=<client id del App Registration en Entra ID>
 VITE_AZURE_TENANT_ID=<tenant id>
-VITE_AZURE_REDIRECT_URI=http://IP_PUBLICA_EC2_FRONTEND:5173
+VITE_AZURE_REDIRECT_URI=http://IP_PUBLICA_EC2_FRONTEND
 ```
+
+(Si en cambio el backend también es público, usa la opción original:
+`VITE_API_URL=http://IP_PUBLICA_EC2_BACKEND:8089` y sirve con `npx serve`
+como antes, sin necesitar nginx.)
 
 `VITE_AZURE_REDIRECT_URI` debe estar agregado tal cual, como "Redirect URI"
 tipo **SPA**, en el App Registration de Azure Entra ID — si no coincide
 exacto, el login falla.
 
-Build y servir:
+Build:
 
 ```bash
 npm install
 npm run build
-npx serve -s dist -l 5173
 ```
 
-(`serve` sirve el build de producción; puedes cambiarlo por nginx apuntando
-a `frontend/dist` si prefieres.)
+Servir con nginx (backend privado):
+
+```bash
+sudo apt install -y nginx        # o: sudo yum install -y nginx
+sudo cp -r dist/* /var/www/smartlogix-frontend/
+sudo cp nginx.conf /etc/nginx/sites-available/smartlogix
+# reemplaza IP_PRIVADA_BACKEND en el archivo copiado por la IP privada real
+sudo ln -s /etc/nginx/sites-available/smartlogix /etc/nginx/sites-enabled/
+sudo rm -f /etc/nginx/sites-enabled/default
+sudo nginx -t && sudo systemctl restart nginx
+```
+
+Security Groups para este escenario:
+- **Backend**: puerto `8089` abierto solo con origen = el Security Group del
+  frontend (no público).
+- **Frontend**: puerto `80` abierto a `0.0.0.0/0` (o solo a quien vaya a usar
+  la app).
+
+O, si el backend es público, sirve directo sin nginx:
+
+```bash
+npx serve -s dist -l 5173
+```
 
 ## 7. Detener todo
 
